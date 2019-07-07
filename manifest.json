@@ -1,0 +1,6 @@
+{
+  "name": "PoisonProtect",
+  "version": 1.0,
+  "description": "Protects from the Poisontap attack",
+  "manifest_version": 2
+}
