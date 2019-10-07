@@ -1,6 +1,11 @@
 {
   "name": "PoisonProtect",
-  "version": 1.0,
+  "version": "1.0",
   "description": "Protects from the Poisontap attack",
-  "manifest_version": 2
+  "manifest_version": 2,
+  "permissions": ["webRequest", "webRequestBlocking", "<all_urls>"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  }
 }
