@@ -1,23 +1,60 @@
 function initializeDataBase(){
     let objStore = database.createObjectStore("hosts", {keyPath: "hostName"});
     createdIndex = objStore.createIndex("lastModified", "lastModified", {unique:false});
-    printMessage("start data storage procedure")
+    printMessage("start data storage procedure");
     for(let i = 1; i <= 1; i++){
         let currentFileName = 'dnsData' + i + '.json';
-        loadJSON(addHostDataToDB, currentFileName, objStore);
+        loadJSON(function (data) {
+            let objStore = database.transaction(["hosts"], "readwrite").objectStore("hosts");
+            let entryList = Object.entries(data);
+            entryList.forEach(function(hostData){
+                hostData = {
+                    "hostName": hostData[0],
+                    "ips": hostData[1].ips,
+                    "lastModified": new Date()
+                };
+                addHostData(hostData, objStore);
+            });
+            currentDBSize += entryList.length;
+        }, currentFileName, objStore);
+    }
+    maxDBSize = currentDBSize * 1.1;
+}
+
+function getHostData(hostname) {
+    let request = database.transaction(["hosts"]).objectStore("hosts").get(hostname);
+    request.onsuccess = function(event){
+        if(event.target.result === 'undefined'){
+            return null;
+        }
+        return event.result;
+    };
+    request.onerror = function(){
+        return null;
     }
 }
 
-function addHostDataToDB(data) {
-    let transaction = database.transaction(["hosts"], "readwrite");
-    let objStore = transaction.objectStore("hosts");
-    Object.entries(data).forEach(function(hostData){
-        objStore.add({
-            "hostName": hostData[0],
-            "ips": hostData[1].ips,
-            "lastModified": new Date()
-        });
-    });
+function addHostData(hostData, objStore = null){
+    if(objStore === null){
+        objStore = database.transaction(["hosts"], "readwrite").objectStore("hosts");
+    }
+    let request = objStore.add(hostData);
+    request.onsuccess = function(){
+        if(++currentDBSize >= maxDBSize) { //delete oldest entry
+            deleteOldestEntry(objStore);
+        }
+    };
+}
+
+function deleteOldestEntry(objStore){
+    let cursorRequest = createdIndex.openCursor(null, "prev");
+    cursorRequest.onsuccess = function(event) {
+        let cursor = event.target.result;
+        let deleteRequest = objStore.delete(cursor.key);
+        deleteRequest.onsuccess = function(){
+            currentDBSize--;
+        }
+    }
 }
 
 function loadJSON(callback, fileName) {
@@ -33,10 +70,10 @@ function loadJSON(callback, fileName) {
 }
 
 function verifyDomainIP(hostname, ipAddress){
-    let hostInfo = addressInformation[hostname];
-    if(hostInfo === undefined){
-
-    } else if(hostInfo !== null && typeof hostInfo === 'object') {
+    let hostInfo = getHostData(hostname);
+    if(hostInfo === null){
+        //hostInformation not present in the DB
+    } else if(typeof hostInfo === 'object') {
 
     }
 }
@@ -70,8 +107,8 @@ function printMessage(message, error = false){
 }
 
 let database, createdIndex;
-let spoofingDetected = false;
-let addressInformation = {};
+let spoofingDetected = false; //will be true if certain amount of request has non listed IPs
+let currentDBSize = 0, maxDBSize = NUMBER.MAX_SAFE_INTEGER;
 const ipv4Regex = /^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/;
 
 let urlFilter = {
