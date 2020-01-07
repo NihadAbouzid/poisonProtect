@@ -3,7 +3,7 @@
   "version": "1.0",
   "description": "Protects from the Poisontap attack",
   "manifest_version": 2,
-  "permissions": ["unlimitedStorage", "webRequestBlocking", "<all_urls>"],
+  "permissions": ["unlimitedStorage", "webRequest", "webRequestBlocking", "<all_urls>"],
   "background": {
     "scripts": ["background.js"],
     "persistent": true
